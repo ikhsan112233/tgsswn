@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Realtime Potensio Chart</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f3f4f6;
+    }
+    #chart-container {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 1.5rem;
+      background-color: #ffffff;
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    canvas {
+      width: 100% !important;
+      height: 500px !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="chart-container" class="mx-4">
+    <h1 class="text-2xl font-bold text-gray-800 mb-4 text-center">Realtime Potentiometer Data</h1>
+    <canvas id="myChart"></canvas>
+  </div>
+
+  <script>
+    // Firebase config
+    const firebaseConfig = {
+      databaseURL: "https://potensio-3cc0c-default-rtdb.firebaseio.com/"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Initialize chart
+    const ctx = document.getElementById('myChart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Potentiometer Value',
+          data: [],
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          borderWidth: 2,
+          tension: 0.4,
+          pointRadius: 4,
+          pointBackgroundColor: '#10b981',
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+          duration: 500,
+          easing: 'easeInOutQuad'
+        },
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Time (seconds)',
+              font: {
+                size: 14,
+                weight: 'bold'
+              },
+              color: '#374151'
+            },
+            grid: {
+              display: false
+            },
+            ticks: {
+              color: '#374151',
+              font: {
+                size: 12
+              }
+            }
+          },
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'ADC Value',
+              font: {
+                size: 14,
+                weight: 'bold'
+              },
+              color: '#374151'
+            },
+            grid: {
+              color: 'rgba(0, 0, 0, 0.05)'
+            },
+            ticks: {
+              color: '#374151',
+              font: {
+                size: 12
+              },
+              stepSize: 100
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            labels: {
+              font: {
+                size: 14
+              },
+              color: '#374151'
+            }
+          },
+          tooltip: {
+            backgroundColor: '#1f2937',
+            titleFont: { size: 14 },
+            bodyFont: { size: 12 },
+            padding: 10,
+            cornerRadius: 4
+          }
+        }
+      }
+    });
+
+    // Sliding window of 8 points
+    let counter = 0;
+
+    function updateChart(value) {
+      const timestamp = counter * 5;
+      chart.data.labels.push(`${timestamp}s`);
+      chart.data.datasets[0].data.push(value);
+      counter++;
+
+      if (chart.data.labels.length > 8) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+      }
+
+      chart.update();
+    }
+
+    // Fetch latest value every 5 seconds
+    setInterval(() => {
+      db.ref("Potensio/latest").get().then((snapshot) => {
+        const nilai = snapshot.val();
+        updateChart(nilai);
+      });
+    }, 5000);
+  </script>
+</body>
+</html>
